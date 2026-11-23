@@ -42,7 +42,7 @@ final class DeletionService
         $parents = $this->findParentsByAttributes($object);
         [$childrenDelete, $childrenDetach] = $this->findChildrenByAttributes($object);
 
-        // Блокируем если есть ЖЁСТКИЕ зависимости от родителей
+        // Block if there are HARD dependencies on parents
         $hasHardParent = false;
         foreach ($parents as $group) {
             if ($group->hard && $group->count > 0) {
@@ -51,8 +51,8 @@ final class DeletionService
             }
         }
 
-        // Блокируем если есть ЖЁСТКИЕ дочерние зависимости (BLOCKING children)
-        // Только для DELETE_CHILD, потому что DETACH_RELATIONS не должен блокировать родителя
+        // Block if there are HARD child dependencies (BLOCKING children)
+        // Only for DELETE_CHILD, because DETACH_RELATIONS must not block the parent
         $hasHardChildren = false;
         foreach ($childrenDelete as $group) {
             if ($group->hard && $group->count > 0) {
@@ -60,8 +60,8 @@ final class DeletionService
                 break;
             }
         }
-        // childrenDetach (DETACH_RELATIONS) НЕ блокирует удаление родителя,
-        // даже если связь помечена как BLOCKING (BLOCKING блокирует удаление дочерней сущности, а не родителя)
+        // childrenDetach (DETACH_RELATIONS) does NOT block parent deletion,
+        // even if the relation is marked BLOCKING (BLOCKING blocks child deletion, not the parent)
 
         return new RelationsDto(
             parents: $parents,
@@ -83,7 +83,7 @@ final class DeletionService
             $fqcn = $meta->getName();
             $rc = new ReflectionClass($fqcn);
 
-            // Новый атрибут RelationTo
+            // New RelationTo attribute
             foreach ($rc->getAttributes(RelationTo::class) as $attributeRef) {
                 /** @var RelationTo $attribute */
                 $attribute = $attributeRef->newInstance();
@@ -102,7 +102,7 @@ final class DeletionService
     }
 
     /**
-     * Ищет зависимости текущей сущности от родительских сущностей.
+     * Finds dependencies of the current entity on parent entities.
      *
      * @param object $object
      *
@@ -117,13 +117,13 @@ final class DeletionService
         foreach ($rc->getAttributes(RelationTo::class) as $attributeRef) {
             /** @var RelationTo $attribute */
             $attribute = $attributeRef->newInstance();
-            // Родительские связи НИКОГДА не должны блокировать удаление текущей сущности
-            // BLOCKING на дочерней сущности означает "нельзя удалить РОДИТЕЛЯ", а не саму дочернюю сущность
+            // Parent relations must NEVER block deletion of the current entity
+            // BLOCKING on a child entity means "the PARENT cannot be deleted", not the child itself
             $isBlocking = false;
             $isJsonField = $this->isJsonField($entityClass, $attribute->field);
 
             if ($isJsonField) {
-                // Поиск по JSON массиву
+                // Lookup via JSON array
                 $parentIds = $this->getJsonArrayParentIds($object, $attribute->field);
                 if (!empty($parentIds)) {
                     $dependencies[] = new DependentGroupDto(
@@ -163,7 +163,7 @@ final class DeletionService
     }
 
     /**
-     * Получает ID родительских сущностей из JSON массива.
+     * Gets parent entity IDs from a JSON array.
      *
      * @param object $object
      * @param string $jsonField
@@ -199,7 +199,7 @@ final class DeletionService
     }
 
     /**
-     * Получает ID всех родительских сущностей, связанных через промежуточную таблицу.
+     * Gets IDs of all parent entities linked via an intermediate table.
      *
      * @param object $object
      * @param string $joinTable
@@ -239,7 +239,7 @@ final class DeletionService
     }
 
     /**
-     * Ищет дочерние записи на основе карты атрибутов (child-классы, зависящие от нас).
+     * Finds child records from the attribute map (child classes that depend on us).
      *
      * @param object $object
      *
@@ -267,13 +267,13 @@ final class DeletionService
                     $ids[] = $this->finder->getId($child);
                 }
             } elseif ($joinTable !== null && $joinColumn !== null && $inverseJoinColumn !== null) {
-                // Дети через join table: выберем детей и соберем их id
+                // Children via join table: select children and collect their ids
                 $childEntities = $this->finder->findByJoinTable($childClass, $joinTable, $joinColumn, $inverseJoinColumn, $object);
                 foreach ($childEntities as $child) {
                     $ids[] = $this->finder->getId($child);
                 }
             } else {
-                // Прямая ссылка: фильтрация по scalar FK у ребенка
+                // Direct reference: filter by scalar FK on the child
                 $children = $this->finder->findByAssociation($childClass, $field, $object);
                 foreach ($children as $child) {
                     $ids[] = $this->finder->getId($child);
@@ -286,8 +286,8 @@ final class DeletionService
                 } elseif ($isDetach) {
                     $childrenDetach[] = new DependentGroupDto($childClass, $hard, count($ids), $ids, $field);
                 } elseif ($hard) {
-                    // Для BLOCKING связей с cascade=NONE всё равно добавляем в childrenDelete,
-                    // чтобы они учитывались при проверке возможности удаления
+                    // For BLOCKING relations with cascade=NONE still add to childrenDelete,
+                    // so they are considered when checking whether deletion is allowed
                     $childrenDelete[] = new DependentGroupDto($childClass, $hard, count($ids), $ids, $field);
                 }
             }
@@ -297,7 +297,7 @@ final class DeletionService
     }
 
     /**
-     * Возвращает правила дочерних связей для заданного родителя из карты.
+     * Returns child relation rules for the given parent from the map.
      *
      * @param string $parentClass
      *

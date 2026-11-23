@@ -6,6 +6,6 @@ namespace Shared\Deletion\Enum;
 
 enum RelationType: string
 {
-    case BLOCKING = 'blocking';     // наличие связи блокирует удаление текущей сущности
-    case REFERENCE = 'reference';   // просто связь (для каскадного удаления родителя), не блокирует текущую
+    case BLOCKING = 'blocking';     // presence of the relation blocks deletion of the current entity
+    case REFERENCE = 'reference';   // plain relation (for cascade parent deletion); does not block the current entity
 }

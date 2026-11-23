@@ -6,7 +6,7 @@ namespace Shared\Deletion\Enum;
 
 enum DeletionCascade: string
 {
-    case NONE = 'none';               // не удалять ребенка при удалении родителя
-    case DELETE_CHILD = 'delete';     // удалить ребенка вместе с родителем
-    case DETACH_RELATIONS = 'detach'; // удалить только связи (join table), сам ребенок не удаляется
+    case NONE = 'none';               // do not delete the child when deleting the parent
+    case DELETE_CHILD = 'delete';     // delete the child together with the parent
+    case DETACH_RELATIONS = 'detach'; // remove only relations (join table); the child itself is not deleted
 }

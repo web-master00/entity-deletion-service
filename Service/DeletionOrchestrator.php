@@ -66,12 +66,12 @@ final class DeletionOrchestrator
 
     private function buildOrderedPlan(object $root, RelationsDto $relations): OrderedPlanDto
     {
-        // Рекурсивный сбор плана
+        // Recursive plan collection
         $deleteMap = []; // class => set(ids)
         $detach = [];
         $this->buildRecursive($root, $relations, $deleteMap, $detach);
 
-        // Преобразуем deleteMap в массив
+        // Convert deleteMap to an array
         $delete = [];
         foreach ($deleteMap as $class => $idsSet) {
             $delete[] = ['class' => $class, 'ids' => array_values($idsSet['ids']), 'field' => $idsSet['field']];
@@ -88,7 +88,7 @@ final class DeletionOrchestrator
      */
     private function buildRecursive(object $parent, RelationsDto $relations, array &$deleteMap, array &$detach): void
     {
-        // 1) Detach текущего уровня (по карте правил)
+        // 1) Detach at the current level (from the rules map)
         $parentIdArr = $this->em->getClassMetadata($parent::class)->getIdentifierValues($parent);
         $parentId = array_values($parentIdArr)[0] ?? null;
         foreach ($this->analyzer->getChildRelationRules($parent::class) as [$childClass, $field, $isBlocking, $joinTable, $joinColumn, $inverseJoinColumn, $cascade]) {
@@ -107,20 +107,20 @@ final class DeletionOrchestrator
             }
         }
 
-        // 2) Для каждого ребенка с каскадным удалением: добавить в deleteMap и рекурсивно спускаться
+        // 2) For each child with cascade delete: add to deleteMap and recurse
         foreach ($relations->childrenDelete as $group) {
             $identifiers = $this->em->getClassMetadata($group->childClass)->getIdentifier();
             $idField = 'id';
             if (!in_array('id', $identifiers)) {
                 $idField = $group->field;
             }
-            // добавить ids в deleteMap
+            // add ids to deleteMap
             $deleteMap[$group->childClass] = $deleteMap[$group->childClass] ?? ['ids' => [], 'field' => $idField];
             foreach ($group->ids as $cid) {
                 $deleteMap[$group->childClass]['ids'][(string) $cid] = $cid;
             }
 
-            // рекурсия для каждого id
+            // recurse for each id
             foreach ($group->ids as $cid) {
                 $repository = $this->em->getRepository($group->childClass);
                 $child = null;
