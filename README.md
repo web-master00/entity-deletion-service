@@ -1,12 +1,12 @@
 # Deletion Service
 
-Сервис для проверки возможности удаления сущностей и получения списка зависимых объектов.
+Service for checking whether entities can be deleted and for listing dependent objects.
 
-## Использование
+## Usage
 
-### 1. Аннотирование зависимостей
+### 1. Annotating dependencies
 
-На сущности-"ребенке" указываем от какой сущности она зависит:
+On a child entity, declare which entity it depends on:
 
 ```php
 <?php
@@ -18,15 +18,15 @@ use Domain\Order\Common\Entity\OrderEntity;
 #[RelationTo(entity: OrderEntity::class, field: 'order', type: RelationType::BLOCKING)]
 final class OrderItemEntity
 {
-    // поле order должно ссылаться на OrderEntity
+    // the order field must reference OrderEntity
     private OrderEntity $order;
     
-    // OrderItemEntity нельзя удалить, если она связана с OrderEntity
-    // OrderEntity можно удалить свободно
+    // OrderItemEntity cannot be deleted while linked to OrderEntity
+    // OrderEntity can be deleted freely
 }
 ```
 
-### 2. Проверка возможности удаления
+### 2. Checking whether deletion is allowed
 
 ```php
 <?php
@@ -44,11 +44,11 @@ class SomeController
         $result = $this->deletionService->canDelete($order);
         
         if (!$result->canDelete) {
-            // Есть зависимые сущности, которые блокируют удаление
+            // Dependent entities are blocking deletion
             foreach ($result->dependents as $group) {
-                echo "Найдено {$group->count} записей типа {$group->childClass}";
+                echo "Found {$group->count} records of type {$group->childClass}";
                 if ($group->hard) {
-                    echo " (блокирует удаление)";
+                    echo " (blocks deletion)";
                 }
                 echo "\n";
             }
@@ -62,18 +62,18 @@ class SomeController
 }
 ```
 
-### 3. Параметры атрибута DependsOn
+### 3. DependsOn attribute parameters
 
-- `parent` - FQCN родительской сущности (обязательный)
-- `field` - имя поля в дочерней сущности, которое ссылается на родителя (обязательный)
-- `hard` - если true, блокирует удаление родителя (по умолчанию true)
-- `joinTable` - имя промежуточной таблицы для many-to-many связей (опциональный)
-- `joinColumn` - колонка в промежуточной таблице, которая ссылается на родителя (опциональный)
-- `inverseJoinColumn` - колонка в промежуточной таблице, которая ссылается на ребенка (опциональный)
+- `parent` - FQCN of the parent entity (required)
+- `field` - field name on the child entity that references the parent (required)
+- `hard` - if true, blocks parent deletion (default true)
+- `joinTable` - intermediate table name for many-to-many relations (optional)
+- `joinColumn` - column in the intermediate table that references the parent (optional)
+- `inverseJoinColumn` - column in the intermediate table that references the child (optional)
 
-### 4. Связи через промежуточные таблицы (Many-to-Many)
+### 4. Relations via intermediate tables (Many-to-Many)
 
-Для связей через промежуточную таблицу укажите дополнительные параметры:
+For relations through an intermediate table, provide the extra parameters:
 
 ```php
 <?php
@@ -84,28 +84,28 @@ use Domain\Advert\Common\Entity\AdvertEntity;
 
 #[RelationTo(
     entity: AdvertEntity::class,
-    field: 'id', // формально обязательное поле
+    field: 'id', // formally required field
     type: RelationType::BLOCKING,
-    joinTable: 'advert_tag_relation', // имя промежуточной таблицы
-    joinColumn: 'advert_id',          // колонка, ссылающаяся на родителя
-    inverseJoinColumn: 'advert_tag_id' // колонка, ссылающаяся на текущую сущность
+    joinTable: 'advert_tag_relation', // intermediate table name
+    joinColumn: 'advert_id',          // column referencing the parent
+    inverseJoinColumn: 'advert_tag_id' // column referencing the current entity
 )]
 final class AdvertTagEntity
 {
-    // AdvertTagEntity нельзя удалить, если есть связи в таблице advert_tag_relation
-    // AdvertEntity можно удалить свободно
+    // AdvertTagEntity cannot be deleted while links exist in advert_tag_relation
+    // AdvertEntity can be deleted freely
 }
 ```
 
-**Логика работы:**
+**How it works:**
 
-- При проверке `AdvertTag` - система проверит есть ли записи в `advert_tag_relation` где `advert_tag_id` = ID тега. Если
-  есть - тег нельзя удалить
-- При проверке `Advert` - система НЕ блокирует удаление родителя. Advert можно удалить свободно
+- When checking `AdvertTag` — the system checks for rows in `advert_tag_relation`
+  where `advert_tag_id` = the tag ID. If any exist, the tag cannot be deleted
+- When checking `Advert` — parent deletion is not blocked. Advert can be deleted freely
 
-### 5. Множественные зависимости
+### 5. Multiple dependencies
 
-Сущность может зависеть от нескольких родителей:
+An entity can depend on several parents:
 
 ```php
 <?php
@@ -121,22 +121,21 @@ final class OrderItemEntity
 }
 ```
 
-## Консольная команда
+## Console command
 
-Для проверки зависимостей из командной строки используйте команду:
+To check dependencies from the command line:
 
 ```bash
-# По короткому имени сущности
+# By short entity name
 php bin/console deletion:check OrderEntity 123
 
-# По полному FQCN
+# By full FQCN
 php bin/console deletion:check "Domain\Order\Common\Entity\OrderEntity" 123
 ```
 
-Команда выведет:
+The command prints:
 
-- Можно ли удалить сущность
-- Список всех зависимых объектов с количеством
-- Тип зависимости (блокирующая или мягкая)
-- ID первых 5 зависимых записей
-
+- Whether the entity can be deleted
+- A list of all dependent objects with counts
+- Dependency type (blocking or soft)
+- IDs of the first 5 dependent records
